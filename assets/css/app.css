@@ -1,0 +1,139 @@
+/* See the Tailwind configuration guide for advanced usage
+   https://tailwindcss.com/docs/configuration */
+
+@import "tailwindcss" source(none);
+@import "phoenix-colocated/job_scout/colocated.css";
+@source "../css";
+@source "../js";
+@source "../../lib/job_scout_web";
+/* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
+@source "../../_build/dev/phoenix-colocated/job_scout/*/";
+
+/* A Tailwind plugin that makes "hero-#{ICON}" classes available.
+   The heroicons installation itself is managed by your mix.exs */
+@plugin "../vendor/heroicons";
+
+/* daisyUI Tailwind Plugin. */
+@plugin "daisyui/packages/bundle/daisyui" {
+  themes: false;
+}
+
+/* daisyUI theme plugin.
+  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
+  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
+@plugin "daisyui/packages/bundle/daisyui-theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-base-100: oklch(30.33% 0.016 252.42);
+  --color-base-200: oklch(25.26% 0.014 253.1);
+  --color-base-300: oklch(20.15% 0.012 254.09);
+  --color-base-content: oklch(97.807% 0.029 256.847);
+  --color-primary: oklch(58% 0.233 277.117);
+  --color-primary-content: oklch(96% 0.018 272.314);
+  --color-secondary: oklch(58% 0.233 277.117);
+  --color-secondary-content: oklch(96% 0.018 272.314);
+  --color-accent: oklch(60% 0.25 292.717);
+  --color-accent-content: oklch(96% 0.016 293.756);
+  --color-neutral: oklch(37% 0.044 257.287);
+  --color-neutral-content: oklch(98% 0.003 247.858);
+  --color-info: oklch(58% 0.158 241.966);
+  --color-info-content: oklch(97% 0.013 236.62);
+  --color-success: oklch(60% 0.118 184.704);
+  --color-success-content: oklch(98% 0.014 180.72);
+  --color-warning: oklch(66% 0.179 58.318);
+  --color-warning-content: oklch(98% 0.022 95.277);
+  --color-error: oklch(58% 0.253 17.585);
+  --color-error-content: oklch(96% 0.015 12.422);
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.21875rem;
+  --size-field: 0.21875rem;
+  --border: 1.5px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin "daisyui/packages/bundle/daisyui-theme" {
+  name: "light";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+  --color-base-100: oklch(98% 0 0);
+  --color-base-200: oklch(96% 0.001 286.375);
+  --color-base-300: oklch(92% 0.004 286.32);
+  --color-base-content: oklch(21% 0.006 285.885);
+  --color-primary: oklch(70% 0.213 47.604);
+  --color-primary-content: oklch(98% 0.016 73.684);
+  --color-secondary: oklch(55% 0.027 264.364);
+  --color-secondary-content: oklch(98% 0.002 247.839);
+  --color-accent: oklch(0% 0 0);
+  --color-accent-content: oklch(100% 0 0);
+  --color-neutral: oklch(44% 0.017 285.786);
+  --color-neutral-content: oklch(98% 0 0);
+  --color-info: oklch(62% 0.214 259.815);
+  --color-info-content: oklch(97% 0.014 254.604);
+  --color-success: oklch(70% 0.14 182.503);
+  --color-success-content: oklch(98% 0.014 180.72);
+  --color-warning: oklch(66% 0.179 58.318);
+  --color-warning-content: oklch(98% 0.022 95.277);
+  --color-error: oklch(58% 0.253 17.585);
+  --color-error-content: oklch(96% 0.015 12.422);
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.21875rem;
+  --size-field: 0.21875rem;
+  --border: 1.5px;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* Add variants based on LiveView classes */
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+
+/* Use the data attribute for dark mode  */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Make LiveView wrapper divs transparent for layout */
+[data-phx-session], [data-phx-teleported-src] { display: contents }
+
+/* This file is for your main application CSS */
+
+
+/* Job Scout: local workspace */
+body { background: #f5f4ef; color: #243931; font-family: ui-sans-serif, system-ui, sans-serif; }
+.scout-shell { max-width: 1220px; margin: auto; padding: 0 44px; }
+.scout-header { display:flex; justify-content:space-between; align-items:center; padding:26px 0; border-bottom:1px solid #dce0d6; }
+.scout-brand { font-size:23px; font-weight:750; display:flex; gap:10px; align-items:center; letter-spacing:-1px; }
+.scout-mark { background:#264b3c; color:#e7efb3; padding:0 9px; border-radius:9px; font-size:30px; }
+.local-badge { font-size:12px; background:#e8ecdf; border:1px solid #d4ddc7; padding:8px 12px; border-radius:20px; display:flex; align-items:center; gap:7px; }
+.local-badge span { height:6px; width:6px; border-radius:100%; background:#688d42; }
+.scout-hero { padding:53px 0 36px; }
+.eyebrow { font-size:10px; font-weight:750; letter-spacing:2px; color:#688052; }
+.scout-hero h1 { font-size:clamp(34px,5vw,56px); line-height:1.08; letter-spacing:-2.7px; font-weight:650; margin:15px 0 20px; }
+.hero-copy { font-size:15px; color:#6c7770; line-height:1.8; }
+.step-bar { display:flex; gap:40px; border-top:1px solid #dce0d6; border-bottom:1px solid #dce0d6; padding:18px 0; margin-bottom:28px; color:#8a938a; font-size:13px; }
+.step-bar b { margin-right:9px; font-size:11px; }.step-bar .active { color:#254e3b; font-weight:700; }.step-bar small { margin-left:6px; font-size:10px; }
+.scout-grid { display:grid; grid-template-columns:1.65fr 1fr; gap:24px; }
+.scout-card { background:#fffefa; border:1px solid #e0e4d9; border-radius:16px; padding:28px; box-shadow:0 4px 20px #23372b03; }
+.card-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }.scout-card h2 { font-size:18px; font-weight:650; letter-spacing:-.4px; }
+.muted { color:#788075; font-size:13px; line-height:1.65; margin:10px 0 18px; }.subtle { font-size:10px; color:#899080; white-space:nowrap; letter-spacing:.5px; }
+.scout-card label { display:block; font-size:12px; font-weight:600; margin:18px 0 8px; }
+.scout-card textarea,.scout-card input,.scout-card select { background:#fafbf6; border:1px solid #dbe1d3; border-radius:8px; padding:12px; width:100%; color:#344839; font-size:13px; }
+.scout-card textarea:focus,.scout-card input:focus,.scout-card select:focus { outline:2px solid #98aa78; outline-offset:2px; }
+.scout-card textarea { resize:vertical; line-height:1.65; }.form-footer { display:flex; justify-content:space-between; align-items:center; margin:10px 0 22px; gap:10px; }
+.text-button { color:#526f40; font-size:12px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }.primary-button { background:#294f3e; color:#f9fbea; font-size:13px; padding:13px 20px; border-radius:8px; cursor:pointer; font-weight:600; }
+button:disabled { opacity:.5; cursor:wait; }.cancel-button { margin-left:20px; }.side-card { background:#edf0e2; padding:32px; }.side-card h2 { font-size:28px; line-height:1.2; margin:20px 0 28px; letter-spacing:-1px; }
+.principles { list-style:none; padding:0; }.principles li { display:flex; gap:14px; margin:22px 0; }.principles li>span { border:1px solid #d0d8bc; border-radius:8px; width:30px; height:30px; flex-shrink:0; display:grid; place-items:center; color:#5c7644; }.principles strong { font-size:13px; font-weight:650; }.principles p { font-size:12px; line-height:1.6; color:#6d7a63; margin-top:5px; }
+.model-box { border-top:1px solid #d5ddc6; margin-top:30px; padding-top:20px; display:flex; justify-content:space-between; align-items:center; gap:8px; }.model-box code { font-size:11px; }.small { font-size:11px; margin-bottom:0; }
+.scout-footer { padding:30px 0; font-size:11px; color:#8a9284; display:flex; justify-content:space-between; gap:16px; }.review-card { margin-top:24px; }.field-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 24px; }.review-card details { font-size:12px; margin:24px 0; }.review-card blockquote { border-left:2px solid #a7b589; padding:10px 15px; margin:10px 0; color:#6b7761; }.run-footer { font-size:10px; color:#7d8875; border-top:1px solid #e1e5d9; padding-top:18px; margin-top:24px; overflow-wrap:anywhere; }.saved-message { padding:14px 0; font-size:13px; color:#3c703c; }.scout-alert { padding:15px 20px; border-radius:8px; background:#fff1de; color:#805c25; font-size:13px; margin-bottom:24px; }
+@media(max-width:760px) { .scout-shell { padding:0 20px; }.scout-grid,.field-grid { grid-template-columns:1fr; }.step-bar { gap:16px; flex-wrap:wrap; }.step-bar small { display:none; }.scout-card { padding:22px; }.scout-footer { flex-direction:column; }.card-heading .subtle { display:none; } }
+
+.primary-button { transition: background .15s, transform .15s; }
+.primary-button:hover:not(:disabled) { background:#3a644b; transform:translateY(-1px); }
+.scout-mark { min-height:34px; display:grid; place-items:center; }

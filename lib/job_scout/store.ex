@@ -1,0 +1,81 @@
+defmodule JobScout.Store do
+  @moduledoc "Single-node, durable local records and serialized quota reservations."
+  use GenServer
+
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: Keyword.get(opts, :name, __MODULE__))
+  end
+
+  def put(kind, id, value, server \\ __MODULE__),
+    do: GenServer.call(server, {:put, kind, id, value})
+
+  def get(kind, id, server \\ __MODULE__), do: GenServer.call(server, {:get, kind, id})
+  def usage(period, server \\ __MODULE__), do: GenServer.call(server, {:usage, period})
+
+  def reserve(period, limit, server \\ __MODULE__),
+    do: GenServer.call(server, {:reserve, period, limit})
+
+  @impl true
+  def init(opts) do
+    path = Keyword.get(opts, :path, Application.get_env(:job_scout, :data_dir, "data/local"))
+
+    with :ok <- File.mkdir_p(path), :ok <- File.chmod(path, 0o700) do
+      {:ok, path}
+    else
+      error -> {:stop, error}
+    end
+  end
+
+  @impl true
+  def handle_call({:put, kind, id, value}, _from, path) do
+    {:reply, write(path, kind, id, value), path}
+  end
+
+  def handle_call({:get, kind, id}, _from, path), do: {:reply, read(path, kind, id), path}
+
+  def handle_call({:usage, period}, _from, path), do: {:reply, read_usage(path, period), path}
+
+  def handle_call({:reserve, period, limit}, _from, path) when is_integer(limit) and limit > 0 do
+    result =
+      with {:ok, used} <- read_usage(path, period) do
+        if used < limit do
+          case write(path, "quota", period, %{"attempts" => used + 1}) do
+            :ok -> {:ok, used + 1}
+            error -> error
+          end
+        else
+          {:error, :quota_exhausted}
+        end
+      end
+
+    {:reply, result, path}
+  end
+
+  defp read_usage(path, period) do
+    case read(path, "quota", period) do
+      {:ok, %{"attempts" => n}} when is_integer(n) and n >= 0 -> {:ok, n}
+      {:error, :enoent} -> {:ok, 0}
+      _ -> {:error, :invalid_quota_ledger}
+    end
+  end
+
+  defp filename(path, kind, id) do
+    hash = :crypto.hash(:sha256, "#{kind}:#{id}") |> Base.encode16(case: :lower)
+    Path.join(path, hash <> ".json")
+  end
+
+  defp read(path, kind, id) do
+    with {:ok, data} <- File.read(filename(path, kind, id)), do: Jason.decode(data)
+  end
+
+  defp write(path, kind, id, value) do
+    target = filename(path, kind, id)
+    temporary = target <> ".tmp"
+
+    with {:ok, json} <- Jason.encode(value),
+         :ok <- File.write(temporary, json, [:sync]),
+         :ok <- File.chmod(temporary, 0o600),
+         :ok <- File.rename(temporary, target),
+         do: :ok
+  end
+end
