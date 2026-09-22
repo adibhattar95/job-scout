@@ -16,13 +16,13 @@ defmodule JobScout.Profile do
   def changeset(profile \\ %__MODULE__{}, attrs) do
     profile
     |> cast(attrs, [:name, :summary, :roles, :skills, :seniority, :evidence])
-    |> validate_required([:summary])
     |> validate_length(:summary, max: 2000)
   end
 
   def parse(attrs, resume) when is_map(attrs) do
     with {:ok, profile} <- changeset(attrs) |> apply_action(:insert),
-         true <- Enum.all?(profile.evidence, &valid_evidence?(&1, resume)) do
+         true <-
+           profile.evidence != [] and Enum.all?(profile.evidence, &valid_evidence?(&1, resume)) do
       {:ok, profile}
     else
       false -> {:error, :unsupported_evidence}

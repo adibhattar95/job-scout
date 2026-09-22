@@ -26,4 +26,18 @@ defmodule JobScout.ProfileTest do
     assert {:error, :invalid_profile} =
              Profile.parse(%{"summary" => "Developer", "skills" => 3}, "resume")
   end
+
+  test "accepts an unknown summary when source evidence is present" do
+    attrs = %{
+      "summary" => "",
+      "roles" => ["Engineer"],
+      "evidence" => [%{"id" => "e1", "quote" => "Engineer"}]
+    }
+
+    assert {:ok, %{summary: nil}} = Profile.parse(attrs, "Engineer")
+  end
+
+  test "rejects a profile with no supporting evidence" do
+    assert {:error, :unsupported_evidence} = Profile.parse(%{"summary" => "Engineer"}, "Engineer")
+  end
 end
