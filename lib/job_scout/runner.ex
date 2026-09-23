@@ -1,6 +1,6 @@
 defmodule JobScout.Runner do
   @moduledoc "Shared extraction entry point for the UI and command-line runs."
-  alias JobScout.{LLM.Ollama, Profile, Store}
+  alias JobScout.{LLM.Ollama, Preferences, Profile, Store}
   @prompt_version "extract-profile-v2"
 
   def extract(resume, opts \\ []) do
@@ -48,12 +48,27 @@ defmodule JobScout.Runner do
     id = Ecto.UUID.generate()
 
     data = %{
+      id: id,
       profile: Profile.to_map(profile),
       preferences: Map.from_struct(preferences),
       saved_at: DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
     with :ok <- Store.put("candidate", id, data), do: {:ok, id}
+  end
+
+  def load_candidate(opts \\ []) do
+    store = Keyword.get(opts, :store, Store)
+
+    with {:ok, record} <- Store.latest_candidate(store),
+         {:ok, profile} <-
+           Profile.changeset(record["profile"]) |> Ecto.Changeset.apply_action(:insert),
+         {:ok, preferences} <-
+           Preferences.changeset(record["preferences"]) |> Ecto.Changeset.apply_action(:insert) do
+      {:ok, profile, preferences, record["id"]}
+    else
+      _ -> {:error, :no_saved_candidate}
+    end
   end
 
   def error_message(:resume_too_short),

@@ -10,6 +10,7 @@ defmodule JobScout.Store do
     do: GenServer.call(server, {:put, kind, id, value})
 
   def get(kind, id, server \\ __MODULE__), do: GenServer.call(server, {:get, kind, id})
+  def latest_candidate(server \\ __MODULE__), do: GenServer.call(server, :latest_candidate)
   def usage(period, server \\ __MODULE__), do: GenServer.call(server, {:usage, period})
 
   def reserve(period, limit, server \\ __MODULE__),
@@ -32,6 +33,27 @@ defmodule JobScout.Store do
   end
 
   def handle_call({:get, kind, id}, _from, path), do: {:reply, read(path, kind, id), path}
+
+  def handle_call(:latest_candidate, _from, path) do
+    candidate =
+      path
+      |> Path.join("*.json")
+      |> Path.wildcard()
+      |> Enum.reduce(nil, fn file, latest ->
+        with {:ok, json} <- File.read(file),
+             {:ok,
+              %{"profile" => profile, "preferences" => preferences, "saved_at" => saved_at} =
+                record} <-
+               Jason.decode(json),
+             true <- is_map(profile) and is_map(preferences) and is_binary(saved_at) do
+          if latest == nil or saved_at > latest["saved_at"], do: record, else: latest
+        else
+          _ -> latest
+        end
+      end)
+
+    {:reply, if(candidate, do: {:ok, candidate}, else: {:error, :enoent}), path}
+  end
 
   def handle_call({:usage, period}, _from, path), do: {:reply, read_usage(path, period), path}
 

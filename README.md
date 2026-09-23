@@ -47,7 +47,7 @@ mix test
 
 ## Local data
 
-`data/local/` contains private candidate snapshots and run records and is excluded from Git. The UI saves candidates but does not yet list/reload them. Tests use isolated temporary directories or `data/test/`. Treat the quota store as single-node: do not run multiple app instances against the same data directory.
+`data/local/` contains private candidate snapshots and run records and is excluded from Git. The UI automatically reloads the most recently saved profile and search preferences; the original resume text is not persisted. Tests use isolated temporary directories or `data/test/`. Treat the quota store as single-node: do not run multiple app instances against the same data directory.
 
 ## Next milestones
 

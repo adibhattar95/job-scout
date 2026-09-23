@@ -12,6 +12,17 @@ defmodule JobScoutWeb.ScoutLive do
   """
 
   def mount(_params, _session, socket) do
+    {profile, profile_form, saved_id} =
+      case Runner.load_candidate(
+             store: Application.get_env(:job_scout, :candidate_store, JobScout.Store)
+           ) do
+        {:ok, profile, preferences, id} ->
+          {profile, to_form(profile_fields(profile, preferences), as: :candidate), id || "saved"}
+
+        _ ->
+          {nil, to_form(%{}, as: :candidate), nil}
+      end
+
     {:ok,
      socket
      |> allow_upload(:resume_pdf, accept: ~w(.pdf), max_entries: 1, max_file_size: 10_000_000)
@@ -19,17 +30,21 @@ defmodule JobScoutWeb.ScoutLive do
        resume: "",
        resume_form: to_form(%{"resume" => ""}),
        busy: false,
-       profile: nil,
+       profile: profile,
        run: nil,
-       saved_id: nil,
+       saved_id: saved_id,
+       show_resume_input: profile == nil,
        model: JobScout.LLM.Ollama.model(),
-       profile_form: to_form(%{}, as: :candidate),
+       profile_form: profile_form,
        error: nil,
        uploaded_filename: nil
      )}
   end
 
   def handle_event("validate_upload", _params, socket), do: {:noreply, socket}
+
+  def handle_event("replace_resume", _, socket),
+    do: {:noreply, assign(socket, show_resume_input: true)}
 
   def handle_event("cancel_upload", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :resume_pdf, ref)}
@@ -108,6 +123,7 @@ defmodule JobScoutWeb.ScoutLive do
        assign(socket,
          profile: profile,
          saved_id: id,
+         show_resume_input: false,
          error: nil,
          profile_form: to_form(attrs, as: :candidate)
        )}
@@ -126,16 +142,7 @@ defmodule JobScoutWeb.ScoutLive do
   end
 
   def handle_async(:extract, {:ok, {:ok, profile, run}}, socket) do
-    form = %{
-      "name" => profile.name || "",
-      "summary" => profile.summary,
-      "seniority" => profile.seniority || "",
-      "skills" => Enum.join(profile.skills, ", "),
-      "roles" => "",
-      "countries" => "",
-      "work_mode" => "any",
-      "sponsorship" => "unknown"
-    }
+    form = profile_fields(profile, %Preferences{})
 
     {:noreply,
      assign(socket,
@@ -170,6 +177,19 @@ defmodule JobScoutWeb.ScoutLive do
       |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == ""))
 
+  defp profile_fields(profile, preferences) do
+    %{
+      "name" => profile.name || "",
+      "summary" => profile.summary || "",
+      "seniority" => profile.seniority || "",
+      "skills" => Enum.join(profile.skills, ", "),
+      "roles" => Enum.join(preferences.roles, ", "),
+      "countries" => Enum.join(preferences.countries, ", "),
+      "work_mode" => preferences.work_mode,
+      "sponsorship" => preferences.sponsorship
+    }
+  end
+
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
@@ -196,7 +216,12 @@ defmodule JobScoutWeb.ScoutLive do
             <span><b>03</b> Tailor & apply <small>Planned</small></span>
           </nav>
           <div :if={@error} role="alert" class="scout-alert">{@error}</div>
-          <div class="scout-grid">
+          <div :if={@saved_id && !@show_resume_input} class="scout-card saved-panel" role="status">
+            <strong>Your profile is saved locally.</strong>
+            <span>Your details and search preferences are ready when you return.</span>
+            <button type="button" phx-click="replace_resume" class="text-button">Use a different resume</button>
+          </div>
+          <div :if={@show_resume_input} class="scout-grid">
             <section class="scout-card">
               <div class="card-heading">
                 <h2>Your experience, in your words</h2><span class="subtle">01 / INPUT</span>

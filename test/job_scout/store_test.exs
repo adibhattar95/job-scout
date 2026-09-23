@@ -31,4 +31,31 @@ defmodule JobScout.StoreTest do
     assert :ok = Store.put("quota", "period", %{"attempts" => "invalid"}, store)
     assert {:error, :invalid_quota_ledger} = Store.reserve("period", 180, store)
   end
+
+  test "finds the newest saved candidate and ignores other records", %{store: store} do
+    assert {:error, :enoent} = Store.latest_candidate(store)
+
+    assert :ok =
+             Store.put(
+               "candidate",
+               "old",
+               %{
+                 profile: %{},
+                 preferences: %{},
+                 saved_at: "2026-09-20T10:00:00Z"
+               },
+               store
+             )
+
+    assert :ok = Store.put("run", "run", %{status: "completed"}, store)
+
+    latest = %{
+      profile: %{"name" => "Alex"},
+      preferences: %{},
+      saved_at: "2026-09-22T10:00:00Z"
+    }
+
+    assert :ok = Store.put("candidate", "new", latest, store)
+    assert {:ok, %{"profile" => %{"name" => "Alex"}}} = Store.latest_candidate(store)
+  end
 end

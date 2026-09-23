@@ -24,4 +24,29 @@ defmodule JobScout.RunnerTest do
     assert {:error, :resume_too_short} =
              JobScout.Runner.extract("short", adapter: JobScout.TestLLM, store: store)
   end
+
+  test "loads a saved profile and preferences from a legacy snapshot", %{store: store} do
+    record = %{
+      profile: %{
+        name: "Alex Morgan",
+        summary: "Built internal APIs in Elixir.",
+        skills: ["Elixir"],
+        roles: ["Software Engineer"],
+        evidence: [%{"id" => "e1", "quote" => "Built internal APIs in Elixir."}]
+      },
+      preferences: %{
+        roles: ["Backend Engineer"],
+        countries: ["IN"],
+        work_mode: "remote",
+        sponsorship: "unknown"
+      },
+      saved_at: "2026-09-22T10:00:00Z"
+    }
+
+    assert :ok = JobScout.Store.put("candidate", "legacy", record, store)
+    assert {:ok, profile, preferences, nil} = JobScout.Runner.load_candidate(store: store)
+    assert profile.name == "Alex Morgan"
+    assert preferences.roles == ["Backend Engineer"]
+    assert preferences.countries == ["IN"]
+  end
 end
