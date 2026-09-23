@@ -49,5 +49,11 @@ defmodule JobScoutWeb.ScoutLiveTest do
     view |> form("#resume-form", resume: "tiny") |> render_submit()
     render_async(view)
     assert has_element?(view, "[role=alert]", "Paste or upload at least 40 characters")
+
+    assert has_element?(
+             view,
+             "#resume-form [role=alert]",
+             "Paste or upload at least 40 characters"
+           )
   end
 end

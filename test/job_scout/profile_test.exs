@@ -22,6 +22,21 @@ defmodule JobScout.ProfileTest do
              Profile.parse(attrs, "Experience: Built APIs in Elixir.")
   end
 
+  test "keeps only supported quotes and accepts whitespace differences" do
+    attrs = %{
+      "summary" => "Engineer",
+      "evidence" => [
+        %{"id" => "e1", "quote" => "Built APIs in Elixir and Phoenix."},
+        %{"id" => "e2", "quote" => "Led a 50-person team"}
+      ]
+    }
+
+    assert {:ok, profile} =
+             Profile.parse(attrs, "Built APIs in Elixir\n  and Phoenix.")
+
+    assert profile.evidence == [%{"id" => "e1", "quote" => "Built APIs in Elixir and Phoenix."}]
+  end
+
   test "rejects invalid structured fields" do
     assert {:error, :invalid_profile} =
              Profile.parse(%{"summary" => "Developer", "skills" => 3}, "resume")

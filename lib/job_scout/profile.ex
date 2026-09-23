@@ -20,12 +20,15 @@ defmodule JobScout.Profile do
   end
 
   def parse(attrs, resume) when is_map(attrs) do
-    with {:ok, profile} <- changeset(attrs) |> apply_action(:insert),
-         true <-
-           profile.evidence != [] and Enum.all?(profile.evidence, &valid_evidence?(&1, resume)) do
-      {:ok, profile}
+    with {:ok, profile} <- changeset(attrs) |> apply_action(:insert) do
+      evidence = Enum.filter(profile.evidence, &valid_evidence?(&1, resume))
+
+      if evidence == [] do
+        {:error, :unsupported_evidence}
+      else
+        {:ok, %{profile | evidence: evidence}}
+      end
     else
-      false -> {:error, :unsupported_evidence}
       {:error, _} -> {:error, :invalid_profile}
     end
   end
@@ -34,10 +37,46 @@ defmodule JobScout.Profile do
 
   defp valid_evidence?(%{"quote" => quote, "id" => id}, resume)
        when is_binary(quote) and is_binary(id) do
-    String.trim(quote) != "" and String.trim(id) != "" and String.contains?(resume, quote)
+    String.trim(quote) != "" and String.trim(id) != "" and
+      String.contains?(normalize_whitespace(resume), normalize_whitespace(quote))
   end
 
   defp valid_evidence?(_, _), do: false
+
+  defp normalize_whitespace(text), do: String.replace(text, ~r/\s+/u, " ")
+
+  @doc "Builds a minimal source-backed profile when the model provides no usable quotes."
+  def recover_unsupported_evidence(attrs, resume) when is_map(attrs) do
+    quote =
+      resume
+      |> String.split("\n")
+      |> Enum.map(&String.trim/1)
+      |> Enum.find(&(String.length(&1) >= 30 and not String.contains?(&1, "@")))
+      |> case do
+        nil -> String.trim(resume)
+        line -> line
+      end
+      |> String.slice(0, 200)
+
+    safe_attrs = %{
+      "name" => sourced_text(attrs["name"], resume),
+      "summary" => nil,
+      "roles" => sourced_list(attrs["roles"], resume),
+      "skills" => sourced_list(attrs["skills"], resume),
+      "seniority" => sourced_text(attrs["seniority"], resume),
+      "evidence" => [%{"id" => "source-1", "quote" => quote}]
+    }
+
+    parse(safe_attrs, resume)
+  end
+
+  defp sourced_list(values, resume) when is_list(values),
+    do: Enum.filter(values, &mentioned?(&1, resume))
+
+  defp sourced_list(_, _), do: []
+
+  defp sourced_text(value, resume),
+    do: if(mentioned?(value, resume), do: value, else: nil)
 
   defp substantive_summary?(summary) when is_binary(summary) do
     String.length(String.trim(summary)) >= 60 and

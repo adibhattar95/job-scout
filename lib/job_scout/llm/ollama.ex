@@ -31,7 +31,7 @@ defmodule JobScout.LLM.Ollama do
     case Req.post(opts) do
       {:ok, %{status: 200, body: %{"message" => %{"content" => content}} = body}} ->
         with {:ok, attrs} <- Jason.decode(content),
-             {:ok, profile} <- JobScout.Profile.parse(attrs, resume) do
+             {:ok, profile} <- parse_or_recover(attrs, resume) do
           profile = JobScout.Profile.ensure_summary(profile, resume)
 
           {:ok, profile,
@@ -60,4 +60,14 @@ defmodule JobScout.LLM.Ollama do
 
   def model, do: Application.get_env(:job_scout, :ollama_model, "llama3.1:latest")
   def base_url, do: Application.get_env(:job_scout, :ollama_url, "http://127.0.0.1:11434")
+
+  defp parse_or_recover(attrs, resume) do
+    case JobScout.Profile.parse(attrs, resume) do
+      {:error, :unsupported_evidence} ->
+        JobScout.Profile.recover_unsupported_evidence(attrs, resume)
+
+      result ->
+        result
+    end
+  end
 end

@@ -99,23 +99,36 @@ defmodule JobScout.OllamaTest do
     refute profile.summary =~ "ImaginarySkill"
   end
 
-  test "rejects fabricated evidence without retrying" do
+  test "recovers from fabricated evidence without accepting unsupported facts or retrying" do
     Req.Test.stub(__MODULE__, fn conn ->
       Req.Test.json(conn, %{
         message: %{
           content:
             Jason.encode!(%{
-              summary: "Developer",
+              summary: "Managed a large team of engineers across several departments.",
+              roles: ["Director"],
+              skills: ["Elixir", "ImaginarySkill"],
               evidence: [%{id: "e1", quote: "Led a 50-person team"}]
             })
         }
       })
     end)
 
-    assert {:error, :invalid_model_output} =
-             Ollama.extract("Built APIs in Elixir.",
+    assert {:ok, profile, _usage} =
+             Ollama.extract("Built APIs in Elixir for internal scheduling applications.",
                request_options: [plug: {Req.Test, __MODULE__}]
              )
+
+    assert profile.skills == ["Elixir"]
+    assert profile.roles == []
+    assert profile.summary == "Skills include Elixir."
+
+    assert profile.evidence == [
+             %{
+               "id" => "source-1",
+               "quote" => "Built APIs in Elixir for internal scheduling applications."
+             }
+           ]
   end
 
   test "reports missing models" do

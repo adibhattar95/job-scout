@@ -253,6 +253,7 @@ defmodule JobScoutWeb.ScoutLive do
                 <button type="submit" disabled={@busy} class="primary-button">{if @busy,
                   do: "Reading your resume…",
                   else: "Build my profile →"}</button>
+                <p :if={@error && !@profile} role="alert" class="scout-alert">{@error}</p>
                 <button :if={@busy} type="button" phx-click="cancel" class="text-button cancel-button">Cancel</button>
                 <p :if={@busy} role="status" class="muted">
                   Your local model is working. The first run may take a few minutes.
