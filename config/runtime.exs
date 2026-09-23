@@ -107,6 +107,7 @@ end
 config :job_scout,
   ollama_url: System.get_env("OLLAMA_URL", "http://127.0.0.1:11434"),
   ollama_model: System.get_env("OLLAMA_MODEL", "llama3.1:latest"),
+  jsearch_key: System.get_env("JSEARCH_API_KEY"),
   data_dir:
     System.get_env(
       "SCOUT_DATA_DIR",

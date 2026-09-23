@@ -16,6 +16,13 @@ defmodule JobScout.Store do
   def reserve(period, limit, server \\ __MODULE__),
     do: GenServer.call(server, {:reserve, period, limit})
 
+  # Conservative local guard for a 200-request monthly JSearch allowance.
+  def jsearch_usage(server \\ __MODULE__, today \\ Date.utc_today()),
+    do: GenServer.call(server, {:jsearch_usage, today})
+
+  def reserve_jsearch(server \\ __MODULE__, today \\ Date.utc_today()),
+    do: GenServer.call(server, {:reserve_jsearch, today})
+
   @impl true
   def init(opts) do
     path = Keyword.get(opts, :path, Application.get_env(:job_scout, :data_dir, "data/local"))
@@ -71,6 +78,37 @@ defmodule JobScout.Store do
       end
 
     {:reply, result, path}
+  end
+
+  def handle_call({:jsearch_usage, today}, _from, path) do
+    {:reply, jsearch_usage_for(path, today), path}
+  end
+
+  def handle_call({:reserve_jsearch, today}, _from, path) do
+    result =
+      with {:ok, used} <- jsearch_usage_for(path, today),
+           true <- used < 180,
+           period = "jsearch:" <> Date.to_iso8601(today),
+           {:ok, today_used} <- read_usage(path, period),
+           :ok <- write(path, "quota", period, %{"attempts" => today_used + 1}) do
+        {:ok, used + 1}
+      else
+        false -> {:error, :quota_exhausted}
+        error -> error
+      end
+
+    {:reply, result, path}
+  end
+
+  defp jsearch_usage_for(path, today) do
+    Enum.reduce_while(0..30, {:ok, 0}, fn days_ago, {:ok, total} ->
+      period = "jsearch:" <> (today |> Date.add(-days_ago) |> Date.to_iso8601())
+
+      case read_usage(path, period) do
+        {:ok, count} -> {:cont, {:ok, total + count}}
+        error -> {:halt, error}
+      end
+    end)
   end
 
   defp read_usage(path, period) do

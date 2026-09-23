@@ -1,6 +1,7 @@
 defmodule JobScoutWeb.ScoutLive do
   use JobScoutWeb, :live_view
-  alias JobScout.{Preferences, Profile, ResumeReader, Runner}
+  alias JobScout.{Jobs, Preferences, Profile, ResumeReader, Runner}
+  alias JobScout.Jobs.JSearch
 
   @example """
   Alex Morgan
@@ -12,15 +13,16 @@ defmodule JobScoutWeb.ScoutLive do
   """
 
   def mount(_params, _session, socket) do
-    {profile, profile_form, saved_id} =
+    {profile, preferences, profile_form, saved_id} =
       case Runner.load_candidate(
              store: Application.get_env(:job_scout, :candidate_store, JobScout.Store)
            ) do
         {:ok, profile, preferences, id} ->
-          {profile, to_form(profile_fields(profile, preferences), as: :candidate), id || "saved"}
+          {profile, preferences, to_form(profile_fields(profile, preferences), as: :candidate),
+           id || "saved"}
 
         _ ->
-          {nil, to_form(%{}, as: :candidate), nil}
+          {nil, nil, to_form(%{}, as: :candidate), nil}
       end
 
     {:ok,
@@ -31,11 +33,17 @@ defmodule JobScoutWeb.ScoutLive do
        resume_form: to_form(%{"resume" => ""}),
        busy: false,
        profile: profile,
+       preferences: preferences,
        run: nil,
        saved_id: saved_id,
        show_resume_input: profile == nil,
        model: JobScout.LLM.Ollama.model(),
        profile_form: profile_form,
+       search_form: to_form(search_fields(preferences), as: :search),
+       search_busy: false,
+       search_results: nil,
+       search_error: nil,
+       jsearch_configured: JSearch.configured?(),
        error: nil,
        uploaded_filename: nil
      )}
@@ -94,6 +102,7 @@ defmodule JobScoutWeb.ScoutLive do
          busy: true,
          error: nil,
          profile: nil,
+         preferences: nil,
          saved_id: nil,
          run: nil
        )
@@ -125,10 +134,13 @@ defmodule JobScoutWeb.ScoutLive do
       {:noreply,
        assign(socket,
          profile: profile,
+         preferences: preferences,
          saved_id: id,
          show_resume_input: false,
          error: nil,
-         profile_form: to_form(attrs, as: :candidate)
+         profile_form: to_form(attrs, as: :candidate),
+         search_form: to_form(search_fields(preferences), as: :search),
+         search_results: nil
        )}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -141,6 +153,32 @@ defmodule JobScoutWeb.ScoutLive do
       _ ->
         {:noreply,
          assign(socket, error: "Could not save the candidate. Check the local data directory.")}
+    end
+  end
+
+  def handle_event(
+        "search",
+        %{"search" => %{"role" => role, "location" => location} = attrs},
+        socket
+      ) do
+    if socket.assigns.search_busy or is_nil(socket.assigns.saved_id) do
+      {:noreply, socket}
+    else
+      profile = socket.assigns.profile
+      preferences = socket.assigns.preferences
+      search_adapter = Application.get_env(:job_scout, :jobs_adapter, Jobs)
+
+      {:noreply,
+       socket
+       |> assign(
+         search_form: to_form(attrs, as: :search),
+         search_busy: true,
+         search_results: nil,
+         search_error: nil
+       )
+       |> start_async(:search, fn ->
+         search_adapter.search(profile, preferences, role, location)
+       end)}
     end
   end
 
@@ -168,6 +206,21 @@ defmodule JobScoutWeb.ScoutLive do
      )}
   end
 
+  def handle_async(:search, {:ok, {:ok, results}}, socket) do
+    {:noreply, assign(socket, search_busy: false, search_results: results)}
+  end
+
+  def handle_async(:search, {:ok, {:error, reason}}, socket) do
+    {:noreply, assign(socket, search_busy: false, search_error: search_error(reason))}
+  end
+
+  def handle_async(:search, {:exit, _}, socket) do
+    {:noreply, assign(socket, search_busy: false, search_error: "Search stopped. Try again.")}
+  end
+
+  defp search_error(:invalid_search_choice), do: "Choose a saved role and location."
+  defp search_error(_), do: "Search failed. Check the source status and try again."
+
   defp upload_error_message(:too_large), do: "The PDF exceeds the 10 MB upload limit."
   defp upload_error_message(:too_many_files), do: "Upload one PDF at a time."
   defp upload_error_message(:not_accepted), do: "Only PDF files are accepted."
@@ -194,6 +247,29 @@ defmodule JobScoutWeb.ScoutLive do
     }
   end
 
+  defp search_fields(nil), do: %{"role" => "", "location" => ""}
+
+  defp search_fields(preferences) do
+    %{
+      "role" => List.first(preferences.roles) || "",
+      "location" => List.first(Jobs.locations(preferences)) || ""
+    }
+  end
+
+  defp source_message(:cached), do: "Cached result"
+  defp source_message(:live), do: "Live result"
+  defp source_message(:stale), do: "Earlier cached result (source unavailable)"
+  defp source_message(:uncached), do: "Live result (cache unavailable)"
+  defp source_message(:not_configured), do: "Add a JSearch key for local and city-specific jobs"
+  defp source_message(:quota_exhausted), do: "Local JSearch safety limit reached"
+  defp source_message(:provider_quota_exhausted), do: "JSearch provider allowance reached"
+  defp source_message(:rate_limited), do: "Daily source limit reached"
+  defp source_message(:not_applicable), do: "Remote listings excluded by work preference"
+  defp source_message(_), do: "Source unavailable"
+
+  defp quota_message({:ok, used}), do: "JSearch local usage: #{used}/180 in the last 31 days"
+  defp quota_message(_), do: "JSearch local usage is unavailable"
+
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
@@ -216,7 +292,7 @@ defmodule JobScoutWeb.ScoutLive do
           </section>
           <nav class="step-bar" aria-label="Progress">
             <span class="active"><b>01</b> Your profile</span>
-            <span><b>02</b> Discover jobs <small>Coming next</small></span>
+            <span class={if @saved_id, do: "active", else: ""}><b>02</b> Discover jobs</span>
             <span><b>03</b> Tailor & apply <small>Planned</small></span>
           </nav>
           <div :if={@error} role="alert" class="scout-alert">{@error}</div>
@@ -318,7 +394,9 @@ defmodule JobScoutWeb.ScoutLive do
               <div class="model-box">
                 <span class="subtle">LOCAL MODEL</span><code>{@model}</code>
               </div>
-              <p class="muted small">No job-source requests are made in this milestone.</p>
+              <p class="muted small">
+                Search uses Remotive for remote jobs and JSearch when configured.
+              </p>
             </aside>
           </div>
           <section :if={@profile} class="scout-card review-card" id="profile-review">
@@ -385,10 +463,69 @@ defmodule JobScoutWeb.ScoutLive do
               <button class="primary-button" type="submit">Save reviewed profile</button>
             </.form>
             <p :if={@saved_id} role="status" class="saved-message">
-              Profile saved locally. Job discovery is the next milestone.
+              Profile saved locally. Choose a role and location below to search.
             </p>
             <div :if={@run} class="run-footer">
               Run {@run.id} · {Float.round(@run.duration_ms / 1000, 1)}s · Local inference · {@run.prompt_version}
+            </div>
+          </section>
+          <section :if={@saved_id && @preferences} class="scout-card review-card" id="job-discovery">
+            <div class="card-heading">
+              <h2>Discover matching jobs</h2><span class="subtle">03 / DISCOVER</span>
+            </div>
+            <p class="muted">
+              Choose one saved role and location. Results are ranked by title and documented skills; check each listing's eligibility before applying.
+            </p>
+            <.form for={@search_form} id="job-search-form" phx-submit="search">
+              <div class="field-grid">
+                <.input
+                  field={@search_form[:role]}
+                  type="select"
+                  label="Target role"
+                  options={Enum.map(@preferences.roles, &{&1, &1})}
+                />
+                <.input
+                  field={@search_form[:location]}
+                  type="select"
+                  label="Search location"
+                  options={Enum.map(Jobs.locations(@preferences), &{&1, &1})}
+                />
+              </div>
+              <button type="submit" disabled={@search_busy} class="primary-button">{if @search_busy,
+                do: "Searching…",
+                else: "Find jobs →"}</button>
+              <p :if={@search_busy} role="status" class="muted">
+                Checking live sources and the local cache…
+              </p>
+            </.form>
+            <p class="muted small">
+              JSearch makes at most one paid request for a new role/location pair; identical searches are cached for 24 hours. The local cap is 180 requests in any 31 days.
+            </p>
+            <p :if={!@jsearch_configured} class="muted small">
+              JSearch is not configured yet. Remotive can show eligible remote jobs; local and city-specific listings need a JSearch API key.
+            </p>
+            <p :if={@search_error} role="alert" class="scout-alert">{@search_error}</p>
+            <div :if={@search_results} id="job-results">
+              <p class="muted small">{quota_message(@search_results.jsearch_usage)}</p>
+              <p class="muted small">
+                JSearch: {source_message(@search_results.jsearch.status)} ({@search_results.jsearch.count} listings) · Remotive: {source_message(
+                  @search_results.remotive.status
+                )} ({@search_results.remotive.count} eligible listings)
+              </p>
+              <p :if={@search_results.jobs == []} role="status" class="muted">
+                No matching listings found for this role and location. Try another saved target, or configure JSearch for broader coverage.
+              </p>
+              <div :for={job <- @search_results.jobs} class="job-card">
+                <span class="eyebrow">{job.source} · {job.location}{if job.remote,
+                  do: " · Remote",
+                  else: ""}</span>
+                <h3><a href={job.url} target="_blank" rel="noopener noreferrer">{job.title} ↗</a></h3>
+                <p class="muted">{job.company}</p>
+                <p :if={job.matched_skills != []} class="muted small">
+                  Matches your skills: {Enum.join(job.matched_skills, ", ")}
+                </p>
+                <p class="muted small">{String.slice(job.description, 0, 280)}</p>
+              </div>
             </div>
           </section>
         </main>

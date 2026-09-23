@@ -16,6 +16,7 @@ services:
       PHX_PORT: ${SCOUT_PORT:-4001}
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:latest}
+      JSEARCH_API_KEY: ${JSEARCH_API_KEY:-}
       SCOUT_DATA_DIR: /app/data
     extra_hosts:
       - "host.docker.internal:host-gateway"

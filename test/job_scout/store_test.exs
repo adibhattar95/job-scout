@@ -58,4 +58,15 @@ defmodule JobScout.StoreTest do
     assert :ok = Store.put("candidate", "new", latest, store)
     assert {:ok, %{"profile" => %{"name" => "Alex"}}} = Store.latest_candidate(store)
   end
+
+  test "JSearch allowance counts a rolling 31-day window atomically", %{store: store} do
+    today = ~D[2026-09-23]
+    assert :ok = Store.put("quota", "jsearch:2026-08-24", %{"attempts" => 178}, store)
+    assert :ok = Store.put("quota", "jsearch:2026-08-23", %{"attempts" => 10}, store)
+    assert {:ok, 178} = Store.jsearch_usage(store, today)
+    assert {:ok, 179} = Store.reserve_jsearch(store, today)
+    assert {:ok, 180} = Store.reserve_jsearch(store, today)
+    assert {:error, :quota_exhausted} = Store.reserve_jsearch(store, today)
+    assert {:ok, 180} = Store.jsearch_usage(store, today)
+  end
 end

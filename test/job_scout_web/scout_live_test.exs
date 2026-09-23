@@ -61,12 +61,18 @@ defmodule JobScoutWeb.ScoutLiveTest do
     path = Path.join(System.tmp_dir!(), "scout-live-#{System.unique_integer([:positive])}")
     store = start_supervised!({JobScout.Store, name: nil, path: path})
     previous_store = Application.get_env(:job_scout, :candidate_store)
+    previous_jobs = Application.get_env(:job_scout, :jobs_adapter)
     Application.put_env(:job_scout, :candidate_store, store)
+    Application.put_env(:job_scout, :jobs_adapter, JobScout.TestJobs)
 
     on_exit(fn ->
       if previous_store,
         do: Application.put_env(:job_scout, :candidate_store, previous_store),
         else: Application.delete_env(:job_scout, :candidate_store)
+
+      if previous_jobs,
+        do: Application.put_env(:job_scout, :jobs_adapter, previous_jobs),
+        else: Application.delete_env(:job_scout, :jobs_adapter)
 
       File.rm_rf!(path)
     end)
@@ -99,7 +105,15 @@ defmodule JobScoutWeb.ScoutLiveTest do
     assert has_element?(view, "#candidate_name[value='Alex Morgan']")
     assert has_element?(view, "#candidate_roles[value='Backend Engineer']")
     assert has_element?(view, "#candidate_countries[value='IN']")
+    assert has_element?(view, "#job-search-form")
     refute has_element?(view, "#resume-form")
+
+    view
+    |> form("#job-search-form", search: %{"role" => "Backend Engineer", "location" => "IN"})
+    |> render_submit()
+
+    render_async(view)
+    assert has_element?(view, "#job-results", "Example Co")
 
     view |> element("button", "Use a different resume") |> render_click()
     assert has_element?(view, "#resume-form")

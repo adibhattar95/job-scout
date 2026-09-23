@@ -143,5 +143,10 @@ button:disabled { opacity:.5; cursor:wait; }.cancel-button { margin-left:20px; }
 .upload-entry { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:12px; color:#536e51; padding:8px 0; }
 .secondary-button { border:1px solid #698466; border-radius:8px; padding:11px 16px; font-size:12px; font-weight:650; color:#294f3e; margin-top:13px; cursor:pointer; }
 .secondary-button:hover:not(:disabled) { background:#eaf0e4; }
+.job-card { border-top:1px solid #e1e5d9; padding:20px 0 12px; }
+.job-card h3 { font-size:17px; font-weight:650; letter-spacing:-.3px; margin:9px 0 4px; }
+.job-card h3 a { color:#294f3e; text-decoration:underline; text-decoration-color:#b9c9af; text-underline-offset:4px; }
+.job-card h3 a:hover { color:#4c7659; }
+.job-card .muted { margin:6px 0; }
 .upload-divider { text-align:center; border-bottom:1px solid #e3e8de; line-height:0; margin:27px 0; color:#839083; font-size:11px; }
 .upload-divider span { background:#fffefa; padding:0 12px; }
