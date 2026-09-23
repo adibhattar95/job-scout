@@ -103,5 +103,27 @@ defmodule JobScoutWeb.ScoutLiveTest do
 
     view |> element("button", "Use a different resume") |> render_click()
     assert has_element?(view, "#resume-form")
+
+    view
+    |> form("#profile-form",
+      candidate: %{
+        "name" => "Alex Morgan",
+        "summary" => "Built internal APIs in Elixir.",
+        "seniority" => "",
+        "skills" => "Elixir",
+        "roles" => "Backend Engineer",
+        "countries" => "",
+        "cities" => "London, GB\nAmsterdam, NL",
+        "work_mode" => "remote",
+        "sponsorship" => "unknown"
+      }
+    )
+    |> render_submit()
+
+    assert has_element?(view, ".saved-panel")
+    {:ok, revisited, _} = live(Phoenix.ConnTest.build_conn(), "/")
+    assert has_element?(revisited, "#candidate_cities", "London, GB")
+    assert has_element?(revisited, "#candidate_cities", "Amsterdam, NL")
+    assert has_element?(revisited, "#candidate_countries[value='']")
   end
 end

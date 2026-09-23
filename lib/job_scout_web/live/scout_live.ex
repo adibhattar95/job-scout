@@ -116,9 +116,12 @@ defmodule JobScoutWeb.ScoutLive do
            Profile.changeset(original, profile_attrs) |> Ecto.Changeset.apply_action(:update),
          {:ok, preferences} <-
            Preferences.from_form(
-             Map.take(attrs, ["countries", "roles", "work_mode", "sponsorship"])
+             Map.take(attrs, ["countries", "cities", "roles", "work_mode", "sponsorship"])
            ),
-         {:ok, id} <- Runner.save_candidate(profile, preferences) do
+         {:ok, id} <-
+           Runner.save_candidate(profile, preferences,
+             store: Application.get_env(:job_scout, :candidate_store, JobScout.Store)
+           ) do
       {:noreply,
        assign(socket,
          profile: profile,
@@ -185,6 +188,7 @@ defmodule JobScoutWeb.ScoutLive do
       "skills" => Enum.join(profile.skills, ", "),
       "roles" => Enum.join(preferences.roles, ", "),
       "countries" => Enum.join(preferences.countries, ", "),
+      "cities" => Enum.join(preferences.cities, "\n"),
       "work_mode" => preferences.work_mode,
       "sponsorship" => preferences.sponsorship
     }
@@ -306,7 +310,7 @@ defmodule JobScoutWeb.ScoutLive do
                 <li>
                   <span><.icon name="hero-arrow-up-right" class="size-4" /></span><div>
                     <strong>You choose the destination</strong><p>
-                      Set target roles, countries and work preferences after extraction.
+                      Set target roles, countries, cities and work preferences after extraction.
                     </p>
                   </div>
                 </li>
@@ -322,7 +326,7 @@ defmodule JobScoutWeb.ScoutLive do
               <h2>Review your profile & choose your direction</h2><span class="subtle">02 / REVIEW</span>
             </div>
             <p class="muted">
-              Correct any extraction mistakes. Only add facts you can support. Countries are your choice, not inferred from the resume.
+              Correct any extraction mistakes. Only add facts you can support. Search locations are your choice, not inferred from the resume.
             </p>
             <.form for={@profile_form} id="profile-form" phx-submit="save">
               <div class="field-grid">
@@ -335,9 +339,20 @@ defmodule JobScoutWeb.ScoutLive do
                 <.input field={@profile_form[:roles]} label="Target roles (comma separated)" required />
                 <.input
                   field={@profile_form[:countries]}
-                  label="Country codes, e.g. IN, GB, DE"
-                  required
+                  label="Countries (optional; codes such as IN, GB, NL)"
                 />
+              </div>
+              <.input
+                field={@profile_form[:cities]}
+                type="textarea"
+                rows="3"
+                label="Cities (one per line; e.g. London, GB)"
+                placeholder="London, GB\nAmsterdam, NL"
+              />
+              <p class="muted small">
+                Enter at least one country or city. You can use both for a wider search.
+              </p>
+              <div class="field-grid">
                 <.input
                   field={@profile_form[:work_mode]}
                   type="select"

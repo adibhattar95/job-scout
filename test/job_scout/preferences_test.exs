@@ -13,7 +13,28 @@ defmodule JobScout.PreferencesTest do
     assert p.roles == ["Engineer", "Designer"]
   end
 
-  test "requires explicit countries and target roles" do
+  test "accepts city targets without broad country targets" do
+    assert {:ok, preferences} =
+             JobScout.Preferences.from_form(%{
+               "countries" => "",
+               "cities" => "London, GB\nAmsterdam, NL",
+               "roles" => "Data Scientist"
+             })
+
+    assert preferences.countries == []
+    assert preferences.cities == ["London, GB", "Amsterdam, NL"]
+  end
+
+  test "requires a target role and at least one country or city" do
     assert {:error, _} = JobScout.Preferences.from_form(%{"countries" => "", "roles" => ""})
+
+    assert {:error, changeset} =
+             JobScout.Preferences.from_form(%{
+               "countries" => "",
+               "cities" => "",
+               "roles" => "Engineer"
+             })
+
+    assert Keyword.has_key?(changeset.errors, :cities)
   end
 end

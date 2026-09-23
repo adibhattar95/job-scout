@@ -44,8 +44,9 @@ defmodule JobScout.Runner do
     end
   end
 
-  def save_candidate(profile, preferences) do
+  def save_candidate(profile, preferences, opts \\ []) do
     id = Ecto.UUID.generate()
+    store = Keyword.get(opts, :store, Store)
 
     data = %{
       id: id,
@@ -54,7 +55,7 @@ defmodule JobScout.Runner do
       saved_at: DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
-    with :ok <- Store.put("candidate", id, data), do: {:ok, id}
+    with :ok <- Store.put("candidate", id, data, store), do: {:ok, id}
   end
 
   def load_candidate(opts \\ []) do

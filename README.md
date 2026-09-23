@@ -1,6 +1,6 @@
 # Job Scout
 
-A local Elixir/Phoenix job-search assistant powered by Ollama. Phase 1 will cover multi-source job discovery, fit ranking, evidence-backed resume tailoring, and cover-letter creation/optimization. Users supply their own countries and preferences. The human submits applications.
+A local Elixir/Phoenix job-search assistant powered by Ollama. Phase 1 will cover multi-source job discovery, fit ranking, evidence-backed resume tailoring, and cover-letter creation/optimization. Users supply their own country or city targets and preferences. The human submits applications.
 
 ## Implemented now
 
@@ -36,6 +36,8 @@ mix phx.server
 ```
 
 Uploaded PDFs are parsed locally into editable text and discarded after extraction. Scanned PDFs need OCR before upload. No Python service, PostgreSQL, cloud LLM, or API key is needed for this milestone. The app binds to loopback in development. It is a personal local application, not an authenticated hosted service.
+
+When reviewing a profile, enter at least one country or city. Country codes are comma-separated (`GB, NL`); city targets go one per line (`London, GB` and `Amsterdam, NL`). Both types of target can be saved together. Job discovery is not implemented yet, so these settings are stored for that milestone.
 
 ## Checks
 
