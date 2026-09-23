@@ -32,6 +32,73 @@ defmodule JobScout.OllamaTest do
     assert profile.skills == ["Elixir"]
   end
 
+  test "first extraction call explicitly requires a substantive summary" do
+    resume =
+      "Alex Morgan is a Software Engineer. Built APIs in Elixir and Docker for internal teams."
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      request = Jason.decode!(body)
+      prompt = request["messages"] |> hd() |> Map.fetch!("content")
+
+      assert prompt =~ "at least 12 words"
+      assert prompt =~ "Never return an empty summary or only a job title"
+      assert request["format"]["properties"]["summary"]["minLength"] == 60
+
+      Req.Test.json(conn, %{
+        message: %{
+          content:
+            Jason.encode!(%{
+              name: "Alex Morgan",
+              summary:
+                "Software Engineer who built internal APIs using Elixir and Docker for internal teams.",
+              roles: ["Software Engineer"],
+              skills: ["Elixir", "Docker"],
+              seniority: "",
+              evidence: [
+                %{id: "e1", quote: "Built APIs in Elixir and Docker for internal teams."}
+              ]
+            })
+        },
+        prompt_eval_count: 100,
+        eval_count: 50
+      })
+    end)
+
+    assert {:ok, profile, usage} =
+             Ollama.extract(resume, request_options: [plug: {Req.Test, __MODULE__}])
+
+    assert profile.summary ==
+             "Software Engineer who built internal APIs using Elixir and Docker for internal teams."
+
+    assert usage.input_tokens == 100
+    assert usage.output_tokens == 50
+  end
+
+  test "keeps a grounded fallback if the model ignores the summary instruction" do
+    resume = "Alex Morgan is a Software Engineer. Built APIs in Elixir and Docker."
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      Req.Test.json(conn, %{
+        message: %{
+          content:
+            Jason.encode!(%{
+              summary: "Software Engineer",
+              roles: ["Software Engineer"],
+              skills: ["Elixir", "Docker", "ImaginarySkill"],
+              evidence: [%{id: "e1", quote: "Built APIs in Elixir and Docker."}]
+            })
+        }
+      })
+    end)
+
+    assert {:ok, profile, _usage} =
+             Ollama.extract(resume, request_options: [plug: {Req.Test, __MODULE__}])
+
+    assert profile.summary == "Software Engineer with skills in Elixir and Docker."
+    refute profile.summary =~ "ImaginarySkill"
+  end
+
   test "rejects fabricated evidence without retrying" do
     Req.Test.stub(__MODULE__, fn conn ->
       Req.Test.json(conn, %{
