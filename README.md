@@ -4,7 +4,7 @@ A local Elixir/Phoenix job-search assistant powered by Ollama. Phase 1 will cove
 
 ## Implemented now
 
-- Phoenix LiveView onboarding with sample resume text, progress, cancellation, and editable profile/preferences.
+- Phoenix LiveView onboarding with PDF upload or pasted resume text, progress, cancellation, and editable profile/preferences.
 - Local Ollama structured profile extraction (default `llama3.1:latest`).
 - Ecto validation and verbatim evidence checks. These checks do **not** prove that every extracted summary or skill is grounded; user review remains necessary.
 - Local candidate snapshots and run metadata with prompt version, elapsed time and token counts. Resume bodies are excluded from trace records; reviewed profiles contain personal data and remain local.
@@ -13,7 +13,7 @@ A local Elixir/Phoenix job-search assistant powered by Ollama. Phase 1 will cove
 
 ## Run
 
-Requirements: Elixir 1.17+ with Erlang/OTP, and a running Ollama installation.
+Requirements: Elixir 1.17+ with Erlang/OTP, Poppler (pdftotext, for PDF uploads), and a running Ollama installation. On macOS: brew install poppler. The Docker image includes Poppler.
 
 ```sh
 cd ~/Desktop/job-scout
@@ -22,7 +22,7 @@ ollama list
 mix phx.server
 ```
 
-Open <http://localhost:4000>. Paste a resume or use the synthetic sample. Model initialization may take a few minutes.
+Open <http://localhost:4000>. Upload a text-based PDF, paste a resume, or use the synthetic sample. Model initialization may take a few minutes.
 
 Optional configuration:
 
@@ -35,7 +35,7 @@ set +a
 mix phx.server
 ```
 
-No Python service, PostgreSQL, cloud LLM, or API key is needed for this milestone. The app binds to loopback in development. It is a personal local application, not an authenticated hosted service.
+Uploaded PDFs are parsed locally into editable text and discarded after extraction. Scanned PDFs need OCR before upload. No Python service, PostgreSQL, cloud LLM, or API key is needed for this milestone. The app binds to loopback in development. It is a personal local application, not an authenticated hosted service.
 
 ## Checks
 

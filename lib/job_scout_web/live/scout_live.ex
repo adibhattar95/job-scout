@@ -1,6 +1,6 @@
 defmodule JobScoutWeb.ScoutLive do
   use JobScoutWeb, :live_view
-  alias JobScout.{Preferences, Profile, Runner}
+  alias JobScout.{Preferences, Profile, ResumeReader, Runner}
 
   @example """
   Alex Morgan
@@ -13,7 +13,9 @@ defmodule JobScoutWeb.ScoutLive do
 
   def mount(_params, _session, socket) do
     {:ok,
-     assign(socket,
+     socket
+     |> allow_upload(:resume_pdf, accept: ~w(.pdf), max_entries: 1, max_file_size: 10_000_000)
+     |> assign(
        resume: "",
        resume_form: to_form(%{"resume" => ""}),
        busy: false,
@@ -22,13 +24,48 @@ defmodule JobScoutWeb.ScoutLive do
        saved_id: nil,
        model: JobScout.LLM.Ollama.model(),
        profile_form: to_form(%{}, as: :candidate),
-       error: nil
+       error: nil,
+       uploaded_filename: nil
      )}
+  end
+
+  def handle_event("validate_upload", _params, socket), do: {:noreply, socket}
+
+  def handle_event("cancel_upload", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :resume_pdf, ref)}
+  end
+
+  def handle_event("parse_pdf", _params, socket) do
+    case consume_uploaded_entries(socket, :resume_pdf, fn %{path: path}, entry ->
+           {:ok, {entry.client_name, ResumeReader.extract_pdf(path)}}
+         end) do
+      [{filename, {:ok, text}}] ->
+        {:noreply,
+         assign(socket,
+           resume: text,
+           resume_form: to_form(%{"resume" => text}),
+           uploaded_filename: filename,
+           profile: nil,
+           error: nil
+         )}
+
+      [{_filename, {:error, reason}}] ->
+        {:noreply, assign(socket, error: ResumeReader.error_message(reason))}
+
+      _ ->
+        {:noreply, assign(socket, error: "Choose a PDF resume to upload first.")}
+    end
   end
 
   def handle_event("example", _, socket),
     do:
-      {:noreply, assign(socket, resume: @example, resume_form: to_form(%{"resume" => @example}))}
+      {:noreply,
+       assign(socket,
+         resume: @example,
+         resume_form: to_form(%{"resume" => @example}),
+         uploaded_filename: nil,
+         error: nil
+       )}
 
   def handle_event("extract", %{"resume" => resume}, socket) do
     if socket.assigns.busy do
@@ -121,6 +158,11 @@ defmodule JobScoutWeb.ScoutLive do
      )}
   end
 
+  defp upload_error_message(:too_large), do: "The PDF exceeds the 10 MB upload limit."
+  defp upload_error_message(:too_many_files), do: "Upload one PDF at a time."
+  defp upload_error_message(:not_accepted), do: "Only PDF files are accepted."
+  defp upload_error_message(_), do: "The upload could not be completed."
+
   defp split(value),
     do:
       (value || "")
@@ -159,7 +201,39 @@ defmodule JobScoutWeb.ScoutLive do
               <div class="card-heading">
                 <h2>Your experience, in your words</h2><span class="subtle">01 / INPUT</span>
               </div>
-              <p class="muted">Paste your resume text to get started. PDF upload is coming next.</p>
+              <p class="muted">
+                Upload a text-based PDF or paste your resume. Review the extracted text before building your profile.
+              </p>
+              <.form
+                for={to_form(%{})}
+                phx-change="validate_upload"
+                phx-submit="parse_pdf"
+                id="pdf-upload-form"
+              >
+                <label for={@uploads.resume_pdf.ref}>PDF resume · up to 10 MB</label>
+                <.live_file_input upload={@uploads.resume_pdf} class="resume-file-input" />
+                <div :for={entry <- @uploads.resume_pdf.entries} class="upload-entry">
+                  <span>{entry.client_name} · {trunc(entry.progress)}%</span>
+                  <button
+                    type="button"
+                    phx-click="cancel_upload"
+                    phx-value-ref={entry.ref}
+                    class="text-button"
+                  >Remove</button>
+                </div>
+                <p :for={error <- upload_errors(@uploads.resume_pdf)} role="alert" class="scout-alert">
+                  {upload_error_message(error)}
+                </p>
+                <button
+                  type="submit"
+                  class="secondary-button"
+                  disabled={@busy || @uploads.resume_pdf.entries == []}
+                >Extract text from PDF</button>
+                <p :if={@uploaded_filename} role="status" class="saved-message">
+                  Text extracted from {@uploaded_filename}. Check it below before continuing.
+                </p>
+              </.form>
+              <div class="upload-divider"><span>or paste text</span></div>
               <.form for={@resume_form} phx-submit="extract" id="resume-form">
                 <.input
                   field={@resume_form[:resume]}

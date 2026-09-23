@@ -137,3 +137,11 @@ button:disabled { opacity:.5; cursor:wait; }.cancel-button { margin-left:20px; }
 .primary-button { transition: background .15s, transform .15s; }
 .primary-button:hover:not(:disabled) { background:#3a644b; transform:translateY(-1px); }
 .scout-mark { min-height:34px; display:grid; place-items:center; }
+
+.resume-file-input { border:1px dashed #aab8a1; border-radius:8px; width:100%; padding:16px; background:#f9fbf6; font-size:12px; }
+.resume-file-input::file-selector-button { border:0; background:#e4ebdb; color:#294f3e; padding:8px 12px; border-radius:6px; cursor:pointer; margin-right:12px; }
+.upload-entry { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:12px; color:#536e51; padding:8px 0; }
+.secondary-button { border:1px solid #698466; border-radius:8px; padding:11px 16px; font-size:12px; font-weight:650; color:#294f3e; margin-top:13px; cursor:pointer; }
+.secondary-button:hover:not(:disabled) { background:#eaf0e4; }
+.upload-divider { text-align:center; border-bottom:1px solid #e3e8de; line-height:0; margin:27px 0; color:#839083; font-size:11px; }
+.upload-divider span { background:#fffefa; padding:0 12px; }

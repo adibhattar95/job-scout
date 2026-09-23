@@ -22,7 +22,7 @@ RUN mix release
 
 FROM ${RUNNER_IMAGE} AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libstdc++6 openssl libncurses6 ca-certificates curl \
+      libstdc++6 openssl libncurses6 ca-certificates curl poppler-utils \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 scout \
     && useradd --uid 10001 --gid scout --home-dir /app --no-create-home scout

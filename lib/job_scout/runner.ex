@@ -56,7 +56,8 @@ defmodule JobScout.Runner do
     with :ok <- Store.put("candidate", id, data), do: {:ok, id}
   end
 
-  def error_message(:resume_too_short), do: "Paste at least 40 characters of resume text."
+  def error_message(:resume_too_short),
+    do: "Paste or upload at least 40 characters of resume text."
 
   def error_message(:resume_too_long),
     do: "This first version supports up to 16,000 characters. Shorten the input and try again."
