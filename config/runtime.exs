@@ -56,7 +56,11 @@ if config_env() == :prod do
   config :job_scout, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :job_scout, JobScoutWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [
+      host: host,
+      port: String.to_integer(System.get_env("PHX_PORT", "443")),
+      scheme: System.get_env("PHX_SCHEME", "https")
+    ],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.

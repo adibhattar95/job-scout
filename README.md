@@ -54,3 +54,58 @@ mix test
 See [the implementation plan](docs/phase-1.md). The current UI deliberately does not claim that search or document tailoring is implemented yet.
 
 Reference: <https://github.com/jamwithai/observable-job-agent/tree/part1.0>.
+
+
+## Docker (local use)
+
+The multi-stage image compiles assets and an Elixir release, then runs it as a non-root user. No host Elixir installation is required. Docker Desktop and a running host Ollama instance with the configured model are required.
+
+First-time configuration:
+
+```sh
+cp .env.docker.example .env.docker
+# Paste the output of this command into SECRET_KEY_BASE in .env.docker:
+openssl rand -hex 64
+```
+
+Start the app:
+
+```sh
+docker compose --env-file .env.docker up --build -d
+docker compose --env-file .env.docker ps
+docker compose --env-file .env.docker logs -f app
+```
+
+Open <http://localhost:4001>. The development server can continue using port 4000. Use `SCOUT_PORT` in `.env.docker` to choose a different browser port. Both the published port and Phoenix's external URL are configured together so LiveView can connect correctly.
+
+The Compose file publishes only to `127.0.0.1`. This is a personal local app without authentication; the Docker setup does not make it a public hosting deployment.
+
+Ollama stays on the Mac so it can use the host's acceleration and existing models. Inside a container, `localhost` refers to that container; `host.docker.internal` reaches the host through Docker Desktop. This setup does not install a second Ollama or download any models. If inference fails, verify host access with:
+
+```sh
+docker compose --env-file .env.docker exec app curl --fail http://host.docker.internal:11434/api/tags
+```
+
+On native Linux, `host-gateway` supplies the hostname, but a host Ollama server bound only to loopback may not be reachable. Configure an accessible Ollama endpoint through `OLLAMA_URL`; this setup does not change the host server's network binding.
+
+Profiles, trace records and quota reservations persist in the `scout_data` named volume, separate from host `data/local/`. Keep one application container per volume. Secrets and all local data are excluded from the build context. Do not use `docker compose down --volumes` unless you intend to delete the container's saved data.
+
+Stop while keeping data:
+
+```sh
+docker compose --env-file .env.docker down
+```
+
+Build and run the image without Compose:
+
+```sh
+docker build -t job-scout:local .
+docker run --rm --init --name job-scout-app \
+  --env-file .env.docker \
+  -e PHX_HOST=localhost -e PHX_SCHEME=http -e PHX_PORT=4001 \
+  --add-host=host.docker.internal:host-gateway \
+  -p 127.0.0.1:4001:4000 \
+  -v job-scout-standalone-data:/app/data job-scout:local
+```
+
+For the standalone command, keep the explicit published port and `PHX_PORT` in sync if changing ports. `SCOUT_PORT` is a Compose variable only. Never pass secrets as Docker build arguments.

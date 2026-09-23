@@ -1,0 +1,26 @@
+name: job-scout
+
+services:
+  app:
+    image: job-scout:local
+    build:
+      context: .
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SCOUT_PORT:-4001}:4000"
+    environment:
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Set SECRET_KEY_BASE in .env.docker}
+      PHX_HOST: localhost
+      PHX_SCHEME: http
+      PHX_PORT: ${SCOUT_PORT:-4001}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:latest}
+      SCOUT_DATA_DIR: /app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - scout_data:/app/data
+
+volumes:
+  scout_data:
